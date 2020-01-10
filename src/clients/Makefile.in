@@ -39,9 +39,10 @@ bin_PROGRAMS = hpidomain$(EXEEXT) hpievents$(EXEEXT) hpifan$(EXEEXT) \
 	hpiinv$(EXEEXT) hpiel$(EXEEXT) hpigensimdata$(EXEEXT) \
 	hpisensor$(EXEEXT) hpipower$(EXEEXT) hpitree$(EXEEXT) \
 	hpialarms$(EXEEXT) hpireset$(EXEEXT) hpiwdt$(EXEEXT) \
-	hpithres$(EXEEXT) hpitop$(EXEEXT) hpisettime$(EXEEXT) \
-	hpionIBMblade$(EXEEXT) ohdomainlist$(EXEEXT) \
-	ohhandler$(EXEEXT) ohparam$(EXEEXT)
+	$(HPICRYPT) hpithres$(EXEEXT) hpitop$(EXEEXT) \
+	hpisettime$(EXEEXT) hpionIBMblade$(EXEEXT) \
+	ohdomainlist$(EXEEXT) ohhandler$(EXEEXT) ohparam$(EXEEXT)
+EXTRA_PROGRAMS = hpicrypt$(EXEEXT)
 subdir = clients
 DIST_COMMON = $(include_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -60,6 +61,9 @@ am__objects_1 = clients.$(OBJEXT)
 am_hpialarms_OBJECTS = hpialarms.$(OBJEXT) $(am__objects_1)
 hpialarms_OBJECTS = $(am_hpialarms_OBJECTS)
 hpialarms_DEPENDENCIES = $(COMMONLIBS)
+am_hpicrypt_OBJECTS = hpicrypt.$(OBJEXT) $(am__objects_1)
+hpicrypt_OBJECTS = $(am_hpicrypt_OBJECTS)
+hpicrypt_DEPENDENCIES = $(COMMONLIBS)
 am_hpidomain_OBJECTS = hpidomain.$(OBJEXT) $(am__objects_1)
 hpidomain_OBJECTS = $(am_hpidomain_OBJECTS)
 hpidomain_DEPENDENCIES = $(COMMONLIBS)
@@ -127,17 +131,17 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(hpialarms_SOURCES) $(hpidomain_SOURCES) $(hpiel_SOURCES) \
-	$(hpievents_SOURCES) $(hpifan_SOURCES) \
-	$(hpigensimdata_SOURCES) $(hpiinv_SOURCES) \
+SOURCES = $(hpialarms_SOURCES) $(hpicrypt_SOURCES) \
+	$(hpidomain_SOURCES) $(hpiel_SOURCES) $(hpievents_SOURCES) \
+	$(hpifan_SOURCES) $(hpigensimdata_SOURCES) $(hpiinv_SOURCES) \
 	$(hpionIBMblade_SOURCES) $(hpipower_SOURCES) \
 	$(hpireset_SOURCES) $(hpisensor_SOURCES) $(hpisettime_SOURCES) \
 	$(hpithres_SOURCES) $(hpitop_SOURCES) $(hpitree_SOURCES) \
 	$(hpiwdt_SOURCES) $(ohdomainlist_SOURCES) $(ohhandler_SOURCES) \
 	$(ohparam_SOURCES)
-DIST_SOURCES = $(hpialarms_SOURCES) $(hpidomain_SOURCES) \
-	$(hpiel_SOURCES) $(hpievents_SOURCES) $(hpifan_SOURCES) \
-	$(hpigensimdata_SOURCES) $(hpiinv_SOURCES) \
+DIST_SOURCES = $(hpialarms_SOURCES) $(hpicrypt_SOURCES) \
+	$(hpidomain_SOURCES) $(hpiel_SOURCES) $(hpievents_SOURCES) \
+	$(hpifan_SOURCES) $(hpigensimdata_SOURCES) $(hpiinv_SOURCES) \
 	$(hpionIBMblade_SOURCES) $(hpipower_SOURCES) \
 	$(hpireset_SOURCES) $(hpisensor_SOURCES) $(hpisettime_SOURCES) \
 	$(hpithres_SOURCES) $(hpitop_SOURCES) $(hpitree_SOURCES) \
@@ -222,6 +226,7 @@ CONFPATH = @CONFPATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CRYPTO_LIB = @CRYPTO_LIB@
+CRYPT_FLAG = @CRYPT_FLAG@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
@@ -239,11 +244,15 @@ EGREP = @EGREP@
 ENABLED_DIRS = @ENABLED_DIRS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+GCRYPT_LIB = @GCRYPT_LIB@
 GLIB_ONLY_CFLAGS = @GLIB_ONLY_CFLAGS@
 GLIB_ONLY_LIBS = @GLIB_ONLY_LIBS@
 GMODULE_ONLY_CFLAGS = @GMODULE_ONLY_CFLAGS@
 GMODULE_ONLY_LIBS = @GMODULE_ONLY_LIBS@
 GREP = @GREP@
+HPICRYPT = @HPICRYPT@
+HPICRYPT_MAN = @HPICRYPT_MAN@
+HPICRYPT_POD = @HPICRYPT_POD@
 HPI_CLIENT_PKG = @HPI_CLIENT_PKG@
 HPI_LIB_VERSION = @HPI_LIB_VERSION@
 HPI_PKG = @HPI_PKG@
@@ -374,7 +383,8 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 MAINTAINERCLEANFILES = Makefile.in
 MOSTLYCLEANFILES = @TEST_CLEAN@
-AM_CPPFLAGS = -DG_LOG_DOMAIN=\"client\"
+AM_CPPFLAGS = -DG_LOG_DOMAIN=\"client\" @CRYPT_FLAG@
+AM_CFLAGS = @CRYPT_FLAG@
 INCLUDES = @OPENHPI_INCLUDES@
 SUBDIRS = hpixml
 DIST_SUBDIRS = hpixml
@@ -402,6 +412,8 @@ hpisensor_SOURCES = hpisensor.c $(CLIENTS_SRC)
 hpisensor_LDADD = $(COMMONLIBS)
 hpiwdt_SOURCES = hpiwdt.c $(CLIENTS_SRC)
 hpiwdt_LDADD = $(COMMONLIBS)
+hpicrypt_SOURCES = hpicrypt.c $(CLIENTS_SRC)
+hpicrypt_LDADD = $(COMMONLIBS)
 hpiinv_SOURCES = hpiinv.c $(CLIENTS_SRC)
 hpiinv_LDADD = $(COMMONLIBS)
 hpisettime_SOURCES = hpisettime.c $(CLIENTS_SRC)
@@ -500,6 +512,9 @@ clean-binPROGRAMS:
 hpialarms$(EXEEXT): $(hpialarms_OBJECTS) $(hpialarms_DEPENDENCIES) 
 	@rm -f hpialarms$(EXEEXT)
 	$(LINK) $(hpialarms_OBJECTS) $(hpialarms_LDADD) $(LIBS)
+hpicrypt$(EXEEXT): $(hpicrypt_OBJECTS) $(hpicrypt_DEPENDENCIES) 
+	@rm -f hpicrypt$(EXEEXT)
+	$(LINK) $(hpicrypt_OBJECTS) $(hpicrypt_LDADD) $(LIBS)
 hpidomain$(EXEEXT): $(hpidomain_OBJECTS) $(hpidomain_DEPENDENCIES) 
 	@rm -f hpidomain$(EXEEXT)
 	$(LINK) $(hpidomain_OBJECTS) $(hpidomain_LDADD) $(LIBS)
@@ -563,6 +578,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clients.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hpialarms.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hpicrypt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hpidomain.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hpiel.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hpievents.Po@am__quote@

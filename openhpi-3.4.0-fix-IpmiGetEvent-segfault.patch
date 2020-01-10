@@ -1,0 +1,11 @@
+diff -up openhpi-3.2.1/plugins/ipmidirect/ipmi.cpp.fix openhpi-3.2.1/plugins/ipmidirect/ipmi.cpp
+--- openhpi-3.2.1/plugins/ipmidirect/ipmi.cpp.fix       2014-02-21 09:38:26.830875375 +1000
++++ openhpi-3.2.1/plugins/ipmidirect/ipmi.cpp   2014-02-21 09:39:05.818649744 +1000
+@@ -421,6 +421,7 @@ IpmiClose( void *hnd )
+   delete ipmi;
+ 
+   oh_handler_state *handler = (oh_handler_state *)hnd;
++  handler->data = NULL;
+ 
+   if ( handler->rptcache )
+   {

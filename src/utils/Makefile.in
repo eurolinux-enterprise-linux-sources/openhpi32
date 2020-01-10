@@ -108,7 +108,8 @@ am__objects_2 =
 am_libopenhpiutils_la_OBJECTS = $(am__objects_1) $(am__objects_2) \
 	announcement_utils.lo el_utils.lo event_utils.lo \
 	epath_utils.lo rpt_utils.lo sahpi_event_utils.lo \
-	sahpi_struct_utils.lo sahpi_time_utils.lo uid_utils.lo
+	sahpi_struct_utils.lo sahpi_time_utils.lo \
+	sahpi_gcrypt_utils.lo uid_utils.lo
 libopenhpiutils_la_OBJECTS = $(am_libopenhpiutils_la_OBJECTS)
 libopenhpiutils_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -186,6 +187,7 @@ CONFPATH = @CONFPATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CRYPTO_LIB = @CRYPTO_LIB@
+CRYPT_FLAG = @CRYPT_FLAG@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
 CXXDEPMODE = @CXXDEPMODE@
@@ -203,11 +205,15 @@ EGREP = @EGREP@
 ENABLED_DIRS = @ENABLED_DIRS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+GCRYPT_LIB = @GCRYPT_LIB@
 GLIB_ONLY_CFLAGS = @GLIB_ONLY_CFLAGS@
 GLIB_ONLY_LIBS = @GLIB_ONLY_LIBS@
 GMODULE_ONLY_CFLAGS = @GMODULE_ONLY_CFLAGS@
 GMODULE_ONLY_LIBS = @GMODULE_ONLY_LIBS@
 GREP = @GREP@
+HPICRYPT = @HPICRYPT@
+HPICRYPT_MAN = @HPICRYPT_MAN@
+HPICRYPT_POD = @HPICRYPT_POD@
 HPI_CLIENT_PKG = @HPI_CLIENT_PKG@
 HPI_LIB_VERSION = @HPI_LIB_VERSION@
 HPI_PKG = @HPI_PKG@
@@ -337,7 +343,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 MAINTAINERCLEANFILES = Makefile.in
-AM_CPPFLAGS = -DG_LOG_DOMAIN=\"utils\"
+AM_CPPFLAGS = -DG_LOG_DOMAIN=\"utils\" @CRYPT_FLAG@
+AM_CFLAGS = @CRYPT_FLAG@
 GENERATED_HEADER_FILES = \
 			sahpi_enum_utils.h \
 			sahpixtca_enum_utils.h \
@@ -383,11 +390,13 @@ libopenhpiutils_la_SOURCES = \
     sahpi_struct_utils.h \
     sahpi_time_utils.c \
     sahpi_time_utils.h \
+    sahpi_gcrypt_utils.c \
+    sahpi_gcrypt_utils.h \
     uid_utils.c \
     uid_utils.h
 
 libopenhpiutils_la_LDFLAGS = -version-info @HPI_LIB_VERSION@
-libopenhpiutils_la_LIBADD = 
+libopenhpiutils_la_LIBADD = @GCRYPT_LIB@
 all: all-recursive
 
 .SUFFIXES:
@@ -472,6 +481,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_enum_utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_event_encode.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_event_utils.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_gcrypt_utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_struct_utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpi_time_utils.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sahpiatca_enum_utils.Plo@am__quote@

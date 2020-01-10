@@ -23,7 +23,7 @@
 
 #include "oh_clients.h"
 
-#define OH_SVN_REV "$Revision: 7544 $"
+#define OH_SVN_REV "$Revision: 7527 $"
 
 #define  MAX_MANAGED_SYSTEMS 80
 #define  HPI_POWER_DEBUG_PRINT(a) if(copt.debug==TRUE)DBG(a)

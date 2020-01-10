@@ -1,0 +1,73 @@
+--- openhpi-3.4.0/openhpid/server.cpp	2012-08-31 16:17:43.000000000 +0200
++++ openhpi-3.4.0/openhpid/server.cpp	2014-12-10 14:20:06.621206210 +0100
+@@ -158,16 +158,34 @@ bool oh_server_run( int ipvflags,
+     GThreadPool *pool;
+     pool = g_thread_pool_new(service_thread, 0, max_threads, FALSE, 0);
+ 
++    cStreamSock::eWaitCc wc;
+     // wait for a connection and then service the connection
+     while (!stop) {
+-        cStreamSock * sock = ssock->Accept();
+-        if (stop) {
+-            break;
++        if ( ( wc = ssock->Wait() ) == cStreamSock::eWaitError ) {
++            if (stop) {
++                break;
++            }
++            g_usleep( 1000000 ); // in case the problem is persistent
++            CRIT( "Waiting on server socket failed" );
++            continue;
++        }
++
++        if ( wc == cStreamSock::eWaitTimeout ) {
++            continue;
+         }
++
++        cStreamSock * sock = ssock->Accept();
++
+         if (!sock) {
+             CRIT("Error accepting server socket.");
++            g_usleep( 1000000 ); // in case the problem is persistent
++            continue;
++        }
++
++        if (stop) {
+             break;
+         }
++
+         LogIp( sock );
+         add_socket_to_list( sock );
+         DBG("### Spawning thread to handle connection. ###");
+@@ -224,7 +242,10 @@ static void service_thread(gpointer sock
+             break;
+         }
+         if (!rc) {
+-            CRIT("%p Error or Timeout while reading socket.", thrdid);
++            // The following error message need not be there as the
++            // ReadMsg captures the error when it returns false and
++            // one of the false return is not a real error
++            // CRIT("%p Error or Timeout while reading socket.", thrdid);
+             break;
+         } else if (type != eMhMsg) {
+             CRIT("%p Unsupported message type. Discarding.", thrdid);
+--- openhpi-3.4.0/transport/strmsock.cpp	2012-11-26 17:06:44.000000000 +0100
++++ openhpi-3.4.0/transport/strmsock.cpp	2014-12-10 13:47:10.016067811 +0100
+@@ -186,7 +186,8 @@ bool cStreamSock::ReadMsg( uint8_t& type
+     while ( got < need ) {
+         ssize_t len = recv( m_sockfd, dst + got, need - got, 0 );
+         if ( len < 0 ) {
+-            CRIT( "error while reading message." );
++            CRIT( "error while reading message in thread %p.",
++            g_thread_self() );
+             return false;
+         } else if ( len == 0 ) {
+             //CRIT( "peer closed connection." );
+@@ -318,7 +319,7 @@ cStreamSock::eWaitCc cStreamSock::Wait()
+     if ( cc == 0 ) { // timeout
+         return eWaitTimeout;
+     } else if ( cc != 1 ) {
+-        CRIT( "select failed" );
++        // CRIT( "select failed" );
+         return eWaitError;
+     } else if ( FD_ISSET( m_sockfd, &fds ) == 0 ) {
+         CRIT( "unexpected select behaviour" );

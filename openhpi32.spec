@@ -3,8 +3,8 @@
 
 Summary:        Hardware Platform Interface library and tools
 Name:           openhpi32
-Version:        3.2.1
-Release:        3%{?dist}
+Version:        3.4.0
+Release:        2%{?dist}
 License:        BSD
 Group:          System Environment/Base
 URL:            http://www.openhpi.org
@@ -13,8 +13,10 @@ Source1:        %{srcname}.initd
 Source2:        %{srcname}.sysconfig
 # https://sourceforge.net/p/openhpi/bugs/1807/
 Patch0:         %{srcname}-3.2.1-docs.patch
-# https://sourceforge.net/p/openhpi/bugs/1808/
-Patch1:         %{srcname}-3.2.1-ipv6.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1105679
+Patch2:         %{srcname}-3.4.0-accept-failed.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1069015
+Patch3:         %{srcname}-3.4.0-fix-IpmiGetEvent-segfault.patch
 BuildRequires:  libsysfs-devel
 BuildRequires:  net-snmp-devel
 BuildRequires:  OpenIPMI-devel
@@ -68,7 +70,8 @@ The development libraries and header files for the OpenHPI project.
 %prep
 %setup -q -n %{srcname}-%{version}
 %patch0 -p1 -b .docs
-%patch1 -p1 -b .ipv6
+%patch2 -p1 -b .accept_failed
+%patch3 -p1 -b .fix_IpmiGetEvent
 
 # fix permissions
 chmod a-x plugins/simulator/*.[ch]
@@ -152,6 +155,14 @@ fi
 
 
 %changelog
+* Fri Feb 20 2015 Michal Toman <mtoman@redhat.com> - 3.4.0-2
+- fix segfault in IpmiGetEvent - #1069015
+
+* Fri Feb 20 2015 Michal Toman <mtoman@redhat.com> - 3.4.0-1
+- rebase to 3.4.0 - #1127907
+- remove ipv6 patch - it is a part of 3.4.0
+- fix "strmsock.cpp:558: accept failed" - #1105679
+
 * Wed Aug 28 2013 Dan Horák <dan[at]danny.cz> - 3.2.1-3
 - enable test-suite
 

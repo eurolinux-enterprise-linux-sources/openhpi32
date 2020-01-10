@@ -5,7 +5,7 @@ dnl   various hacks by Sean Dague <http://dague.net/sean> 4/23/03
 
 
 AC_PREREQ(2.57)
-AC_INIT(openhpi, 3.2.1)
+AC_INIT(openhpi, 3.4.0)
 AC_CONFIG_SRCDIR(openhpi.spec.in)
 AM_INIT_AUTOMAKE([1.8])
 
@@ -23,7 +23,7 @@ AH_BOTTOM([#endif /* __OPENHPI_CONFIG_H */])
 # minor version: 11 = 11
 # patch version: 4  = 4
 #
-HPI_LIB_VERSION=5:1:2
+HPI_LIB_VERSION=7:0:4
 HPI_PKG=$PACKAGE_NAME
 HPI_UTIL_PKG=${PACKAGE_NAME}utils
 HPI_CLIENT_PKG=${PACKAGE_NAME}client
@@ -162,6 +162,10 @@ AC_ARG_WITH(net-snmp-config,
 OH_CHECK_NETSNMP
 
 AC_CHECK_LIB([uuid], [uuid_generate], [have_uuid=yes])
+
+dnl gcrypt is used for encrypting the conf file
+AC_CHECK_LIB([gcrypt],[gcry_control],[have_gcrypt_lib=yes],[have_gcrypt_lib=no])
+AC_CHECK_HEADERS([gcrypt.h],[have_gcrypt=yes],[have_gcrypt=no])
 
 dnl ssl is used for md2/md5 authentification in ipmidirect
 dnl and for SSL-based communication in ilo2_ribcl and oa_soap
@@ -413,6 +417,41 @@ AC_ARG_ENABLE([oa_soap],
         AC_SUBST(WITH_OA_SOAP,1)
      else
         AC_SUBST(WITH_OA_SOAP,0)
+     fi
+    ])
+
+# configure argument for enabling file encryption
+AC_ARG_ENABLE([encryption],
+    [  --enable-encryption        Enable File Encryption [[default=yes if libgcrypt and gcrypt.h exist]]],
+    [if test "x$enableval" = "xyes"; then
+        if test "x$have_gcrypt" = "xyes"; then
+            if test "x$have_gcrypt_lib" = "xyes"; then 
+                AC_SUBST(HPICRYPT,hpicrypt)
+                AC_SUBST(HPICRYPT_POD,hpicrypt.1.pod)
+                AC_SUBST(HPICRYPT_MAN,hpicrypt.1)
+                CRYPT_FLAG="-DHAVE_ENCRYPT" 
+                AC_SUBST(CRYPT_FLAG)
+                GCRYPT_LIB="-lgcrypt"
+                AC_SUBST(GCRYPT_LIB)
+            else
+	        OH_CHECK_FAIL(libgcrypt,libgcrypt,,
+                       Can not enable encryption without gcrypt library)
+            fi
+	else
+	    OH_CHECK_FAIL(libgcrypt-devel,libgcrypt-devel,,
+                       Can not enable encryption without gcrypt headers)
+	fi
+    fi],
+    [if test "x$have_gcrypt" = "xyes"; then
+        if test "x$have_gcrypt_lib" = "xyes"; then 
+              AC_SUBST(HPICRYPT,hpicrypt)
+              AC_SUBST(HPICRYPT_POD,hpicrypt.1.pod)
+              AC_SUBST(HPICRYPT_MAN,hpicrypt.1)
+              CRYPT_FLAG="-DHAVE_ENCRYPT" 
+              AC_SUBST(CRYPT_FLAG)
+              GCRYPT_LIB="-lgcrypt"
+              AC_SUBST(GCRYPT_LIB)
+        fi
      fi
     ])
 
