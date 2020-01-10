@@ -1,0 +1,126 @@
+diff -up openhpi-3.2.1/Makefile.am.docs openhpi-3.2.1/Makefile.am
+--- openhpi-3.2.1/Makefile.am.docs	2013-08-20 18:20:30.498731238 +0200
++++ openhpi-3.2.1/Makefile.am	2013-08-20 18:20:43.124971660 +0200
+@@ -116,8 +116,7 @@ include_HEADERS = $(top_srcdir)/include/
+                   $(top_srcdir)/utils/event_utils.h \
+                   $(top_srcdir)/clients/oh_clients.h
+ 
+-docsdir=$(datadir)/doc/$(PACKAGE_NAME)-$(VERSION)
+-docs_DATA = README README.daemon COPYING
++doc_DATA = README README.daemon COPYING
+ 
+ $(top_srcdir)/utils/sahpi_enum_utils.h:
+ 	make -C $(top_builddir)/utils sahpi_enum_utils.h
+diff -up openhpi-3.2.1/Makefile.in.docs openhpi-3.2.1/Makefile.in
+--- openhpi-3.2.1/Makefile.in.docs	2013-08-20 18:20:35.600793885 +0200
++++ openhpi-3.2.1/Makefile.in	2013-08-20 18:20:57.736606575 +0200
+@@ -117,8 +117,8 @@ am__nobase_list = $(am__nobase_strip_set
+ am__base_list = \
+   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
+   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+-am__installdirs = "$(DESTDIR)$(docsdir)" "$(DESTDIR)$(includedir)"
+-DATA = $(docs_DATA)
++am__installdirs = "$(DESTDIR)$(docdir)" "$(DESTDIR)$(includedir)"
++DATA = $(doc_DATA)
+ HEADERS = $(include_HEADERS)
+ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
+   distclean-recursive maintainer-clean-recursive
+@@ -330,6 +330,7 @@ target_alias = @target_alias@
+ top_build_prefix = @top_build_prefix@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
++unitdir = @unitdir@
+ TARFILE = $(PACKAGE_NAME)-$(VERSION).tar.gz
+ DESTDIR = 
+ RPMFLAGS = -ba
+@@ -404,8 +405,7 @@ include_HEADERS = $(top_srcdir)/include/
+                   $(top_srcdir)/utils/event_utils.h \
+                   $(top_srcdir)/clients/oh_clients.h
+ 
+-docsdir = $(datadir)/doc/$(PACKAGE_NAME)-$(VERSION)
+-docs_DATA = README README.daemon COPYING
++doc_DATA = README README.daemon COPYING
+ all: config.h
+ 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+ 
+@@ -476,26 +476,26 @@ clean-libtool:
+ 
+ distclean-libtool:
+ 	-rm -f libtool config.lt
+-install-docsDATA: $(docs_DATA)
++install-docDATA: $(doc_DATA)
+ 	@$(NORMAL_INSTALL)
+-	test -z "$(docsdir)" || $(MKDIR_P) "$(DESTDIR)$(docsdir)"
+-	@list='$(docs_DATA)'; test -n "$(docsdir)" || list=; \
++	test -z "$(docdir)" || $(MKDIR_P) "$(DESTDIR)$(docdir)"
++	@list='$(doc_DATA)'; test -n "$(docdir)" || list=; \
+ 	for p in $$list; do \
+ 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+ 	  echo "$$d$$p"; \
+ 	done | $(am__base_list) | \
+ 	while read files; do \
+-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(docsdir)'"; \
+-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(docsdir)" || exit $$?; \
++	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(docdir)'"; \
++	  $(INSTALL_DATA) $$files "$(DESTDIR)$(docdir)" || exit $$?; \
+ 	done
+ 
+-uninstall-docsDATA:
++uninstall-docDATA:
+ 	@$(NORMAL_UNINSTALL)
+-	@list='$(docs_DATA)'; test -n "$(docsdir)" || list=; \
++	@list='$(doc_DATA)'; test -n "$(docdir)" || list=; \
+ 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+ 	test -n "$$files" || exit 0; \
+-	echo " ( cd '$(DESTDIR)$(docsdir)' && rm -f" $$files ")"; \
+-	cd "$(DESTDIR)$(docsdir)" && rm -f $$files
++	echo " ( cd '$(DESTDIR)$(docdir)' && rm -f" $$files ")"; \
++	cd "$(DESTDIR)$(docdir)" && rm -f $$files
+ install-includeHEADERS: $(include_HEADERS)
+ 	@$(NORMAL_INSTALL)
+ 	test -z "$(includedir)" || $(MKDIR_P) "$(DESTDIR)$(includedir)"
+@@ -800,7 +800,7 @@ check: check-recursive
+ all-am: Makefile $(DATA) $(HEADERS) config.h
+ installdirs: installdirs-recursive
+ installdirs-am:
+-	for dir in "$(DESTDIR)$(docsdir)" "$(DESTDIR)$(includedir)"; do \
++	for dir in "$(DESTDIR)$(docdir)" "$(DESTDIR)$(includedir)"; do \
+ 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+ 	done
+ install: install-recursive
+@@ -852,7 +852,7 @@ info: info-recursive
+ 
+ info-am:
+ 
+-install-data-am: install-data-local install-docsDATA \
++install-data-am: install-data-local install-docDATA \
+ 	install-includeHEADERS
+ 
+ install-dvi: install-dvi-recursive
+@@ -899,7 +899,7 @@ ps: ps-recursive
+ 
+ ps-am:
+ 
+-uninstall-am: uninstall-docsDATA uninstall-includeHEADERS \
++uninstall-am: uninstall-docDATA uninstall-includeHEADERS \
+ 	uninstall-local
+ 
+ .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all \
+@@ -913,7 +913,7 @@ uninstall-am: uninstall-docsDATA uninsta
+ 	distclean-hdr distclean-libtool distclean-tags distcleancheck \
+ 	distdir distuninstallcheck dvi dvi-am html html-am info \
+ 	info-am install install-am install-data install-data-am \
+-	install-data-local install-docsDATA install-dvi install-dvi-am \
++	install-data-local install-docDATA install-dvi install-dvi-am \
+ 	install-exec install-exec-am install-html install-html-am \
+ 	install-includeHEADERS install-info install-info-am \
+ 	install-man install-pdf install-pdf-am install-ps \
+@@ -921,7 +921,7 @@ uninstall-am: uninstall-docsDATA uninsta
+ 	installdirs installdirs-am maintainer-clean \
+ 	maintainer-clean-generic mostlyclean mostlyclean-generic \
+ 	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
+-	uninstall uninstall-am uninstall-docsDATA \
++	uninstall uninstall-am uninstall-docDATA \
+ 	uninstall-includeHEADERS uninstall-local
+ 
+ 

@@ -1,0 +1,519 @@
+From d0e4b82b4fa62e70a08c75810cb1f8b71e07d839 Mon Sep 17 00:00:00 2001
+From: dr_mohan <dr_mohan@a44bbd40-eb13-0410-a9b2-f80f2f72fa26>
+Date: Thu, 22 Aug 2013 19:09:02 +0000
+Subject: [PATCH 1/2] Fix for #1808
+
+git-svn-id: svn://svn.code.sf.net/p/openhpi/code/openhpi/trunk@7553 a44bbd40-eb13-0410-a9b2-f80f2f72fa26
+---
+ plugins/oa_soap/oa_soap_calls.h |   8 ++
+ plugins/oa_soap/oa_soap_utils.c | 158 +++++++++++++++++++++++++++++++++++--
+ plugins/oa_soap/oa_soap_utils.h |   4 +
+ ssl/oh_ssl.c                    | 169 ++++++++++++++++++++--------------------
+ 4 files changed, 247 insertions(+), 92 deletions(-)
+
+diff --git a/plugins/oa_soap/oa_soap_calls.h b/plugins/oa_soap/oa_soap_calls.h
+index 367ca08..807ea32 100644
+--- a/plugins/oa_soap/oa_soap_calls.h
++++ b/plugins/oa_soap/oa_soap_calls.h
+@@ -1558,6 +1558,14 @@ struct oaNetworkInfo
+         enum hpoa_boolean dynDnsEnabled;
+         char *macAddress;
+         char *ipAddress;
++        char ipv6Address0[255];
++        char ipv6Address1[255];
++        char ipv6Address2[255];
++        char ipv6Address3[255];
++        char *ipv6AddressType0;
++        char *ipv6AddressType1;
++        char *ipv6AddressType2;
++        char *ipv6AddressType3;
+         char *netmask;
+         char *gateway;
+         xmlNode *dns;                   /* Items are char *ipAddress */
+diff --git a/plugins/oa_soap/oa_soap_utils.c b/plugins/oa_soap/oa_soap_utils.c
+index 68f7cf4..6efc7ee 100644
+--- a/plugins/oa_soap/oa_soap_utils.c
++++ b/plugins/oa_soap/oa_soap_utils.c
+@@ -373,10 +373,15 @@ SaErrorT get_oa_state(struct oh_handler_state *oh_handler,
+                         case ACTIVE:
+                                 active_bay = i;
+                                 memset(active_ip, 0, MAX_URL_LEN);
+-                                strncpy(active_ip,
+-                                        network_info_response.ipAddress,
+-                                        strlen(network_info_response.
+-                                                       ipAddress));
++                                rv = oa_soap_get_oa_ip(server,
++                                                       network_info_response,
++                                                       active_ip);
++                                if (rv != SOAP_OK) {
++                                        err("Get Active OA IP failed");
++                                        soap_close(hpi_con);
++                                        soap_close(event_con);
++                                        return SA_ERR_HPI_INTERNAL_ERROR;
++                                }
+ 
+                                 memset(active_fm, 0, MAX_BUF_SIZE);
+                                 strncpy(active_fm, firmware, strlen(firmware));
+@@ -394,10 +399,15 @@ SaErrorT get_oa_state(struct oh_handler_state *oh_handler,
+                         case STANDBY:
+                                 standby_bay = i;
+                                 memset(standby_ip, 0, MAX_URL_LEN);
+-                                strncpy(standby_ip,
+-                                        network_info_response.ipAddress,
+-                                        strlen(network_info_response.
+-                                                       ipAddress));
++                                rv = oa_soap_get_oa_ip(server,
++                                                       network_info_response,
++                                                       standby_ip);
++                                if (rv != SOAP_OK) {
++                                        err("Get Standby OA IP failed");
++                                        soap_close(hpi_con);
++                                        soap_close(event_con);
++                                        return SA_ERR_HPI_INTERNAL_ERROR;
++                                }
+ 
+                                 memset(standby_fm, 0, MAX_BUF_SIZE);
+                                 strncpy(standby_fm, firmware, strlen(firmware));
+@@ -1686,3 +1696,135 @@ SaErrorT update_oa_fw_version(struct oh_handler_state *oh_handler,
+ 
+         return SA_OK;
+ }
++
++/**
++ * oa_soap_get_oa_ip
++ *      @server:     Pointer to hostname/IP address of the OA
++ *      @network_info_response: Pointer to oaNetworkInfo response structure
++ *      @oa_ip:     Pointer to Active/Standby OA IP address
++ *
++ * Purpose:
++ *      Gets the active/standby OA IP address
++ *
++ * Detailed Description: NA
++ *
++ * Return values:
++ *      SA_OK  - on success.
++ *      SA_ERR_HPI_INVALID_PARAMS - on wrong parameters
++ **/
++SaErrorT oa_soap_get_oa_ip(char *server, 
++                           struct oaNetworkInfo network_info_response,
++                           char *oa_ip)
++{
++        int ipv6, local_ipv6;
++        char *interface_name;
++        struct extraDataInfo extra_data_info;
++        xmlNode *extra_data = NULL;
++
++        if (&network_info_response == NULL || server == NULL) {
++                err("Invalid parameters");
++                return SA_ERR_HPI_INVALID_PARAMS;
++        }
++
++        /* intialize the flags for ipv6  */
++        ipv6 = strstr(server, ":") == NULL ? 0 : 1;
++        local_ipv6 = (strstr(server, "fe80")- server) == 0 ? 1 : 0;
++
++        extra_data = network_info_response.extraData;
++        while (extra_data) {
++                soap_getExtraData(extra_data, &extra_data_info);
++                if ((!(strcmp(extra_data_info.name, "Ipv6Address0"))) 
++                       && (extra_data_info.value != NULL)) {
++                        memcpy(network_info_response.ipv6Address0,
++                               extra_data_info.value,
++                               strlen(extra_data_info.value) -
++                               strlen(strchr(extra_data_info.value, '/')));
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6Address1")))
++                       && (extra_data_info.value != NULL)) {
++                        memcpy(network_info_response.ipv6Address1,
++                               extra_data_info.value,
++                               strlen(extra_data_info.value) -
++                               strlen(strchr(extra_data_info.value, '/')));
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6Address2")))
++                       && (extra_data_info.value != NULL)) {
++                        memcpy(network_info_response.ipv6Address2,
++                               extra_data_info.value,
++                               strlen(extra_data_info.value) -
++                               strlen(strchr(extra_data_info.value, '/')));
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6Address3")))
++                       && (extra_data_info.value != NULL)) {
++                        memcpy(network_info_response.ipv6Address3,
++                               extra_data_info.value,
++                               strlen(extra_data_info.value) -
++                               strlen(strchr(extra_data_info.value, '/')));
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6AddressType0"))) &&
++                                           (extra_data_info.value != NULL)) {
++                        network_info_response.ipv6AddressType0 = 
++                                                 extra_data_info.value;
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6AddressType1"))) &&
++                                           (extra_data_info.value != NULL)) {
++                        network_info_response.ipv6AddressType1 =
++                                                extra_data_info.value;
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6AddressType2"))) &&
++                                           (extra_data_info.value != NULL)) {
++                        network_info_response.ipv6AddressType2 =
++                                                extra_data_info.value;
++                }
++                if ((!(strcmp(extra_data_info.name, "Ipv6AddressType3"))) &&
++                                           (extra_data_info.value != NULL)) {
++                        network_info_response.ipv6AddressType3 =
++                                                extra_data_info.value;
++                }
++                extra_data = soap_next_node(extra_data);
++        }
++
++        if(!ipv6) {
++                strncpy(oa_ip, network_info_response.ipAddress,
++                        strlen(network_info_response.ipAddress));
++        } else if(!local_ipv6) {
++                if ((!(strcmp(network_info_response.ipv6AddressType0,
++                                                              "STATIC")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address0,
++                                strlen(network_info_response.ipv6Address0));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType1,
++                                                              "STATIC")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address1,
++                                strlen(network_info_response.ipv6Address1));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType2,
++                                                              "STATIC")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address2,
++                                strlen(network_info_response.ipv6Address2));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType3,
++                                                              "STATIC")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address3,
++                                strlen(network_info_response.ipv6Address3));
++                }
++        } else {
++                if ((!(strcmp(network_info_response.ipv6AddressType0,
++                                                           "LINKLOCAL")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address0,
++                                strlen(network_info_response.ipv6Address0));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType1,
++                                                           "LINKLOCAL")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address1,
++                                strlen(network_info_response.ipv6Address1));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType2,
++                                                           "LINKLOCAL")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address2,
++                                strlen(network_info_response.ipv6Address2));
++                } else if ((!(strcmp(network_info_response.ipv6AddressType3,
++                                                           "LINKLOCAL")))) {
++                        strncpy(oa_ip, network_info_response.ipv6Address3,
++                                strlen(network_info_response.ipv6Address3));
++                }
++                interface_name = strchr(server, '%');
++                strcat(oa_ip, interface_name);
++        }
++        return SA_OK;
++}
+diff --git a/plugins/oa_soap/oa_soap_utils.h b/plugins/oa_soap/oa_soap_utils.h
+index b71ba65..7c6c2ab 100644
+--- a/plugins/oa_soap/oa_soap_utils.h
++++ b/plugins/oa_soap/oa_soap_utils.h
+@@ -118,4 +118,8 @@ char * oa_soap_trim_whitespace(char *s);
+ SaErrorT update_oa_fw_version(struct oh_handler_state *oh_handler,
+                               struct oaInfo *response,
+                               SaHpiResourceIdT resource_id);
++
++SaErrorT oa_soap_get_oa_ip(char *server,
++                      struct oaNetworkInfo network_info_response,
++                      char *oa_ip);
+ #endif
+diff --git a/ssl/oh_ssl.c b/ssl/oh_ssl.c
+index 1741864..77fe083 100644
+--- a/ssl/oh_ssl.c
++++ b/ssl/oh_ssl.c
+@@ -74,6 +74,11 @@
+ #include <oh_ssl.h>
+ #include <oh_error.h>
+ 
++#include <sys/ioctl.h>
++#include <sys/socket.h>
++#include <sys/types.h>
++#include <arpa/inet.h>
++#include <netdb.h>
+ 
+ /* Data types used by this module */
+ struct CRYPTO_dynlock_value {
+@@ -441,11 +446,17 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+ {
+         BIO             *bio;
+         SSL             *ssl;
+-        fd_set          readfds;
+-        fd_set          writefds;
+-        struct timeval  tv;
+-        int             fd;
+         int             err;
++        int len, retval = 0;
++        int RetVal, socket_desc = 0;
++        char *Server = NULL;
++        char *Port = NULL;
++        struct addrinfo Hints, *AddrInfo = NULL, *ai = NULL;
++
++        memset(&Hints, 0, sizeof(Hints));
++        Hints.ai_family = AF_UNSPEC;
++        Hints.ai_socktype = SOCK_STREAM;
++        len = strlen(hostname);
+ 
+         if (hostname == NULL) {
+                 CRIT("NULL hostname in oh_ssl_connect()");
+@@ -460,98 +471,88 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+                 return(NULL);
+         }
+ 
+-        /* Start with a new SSL BIO */
+-        bio = BIO_new_ssl_connect(ctx);
+-        if (bio == NULL) {
+-                CRIT("BIO_new_ssl_connect() failed");
+-                return(NULL);
++        /* Allocate memory to a char pointer "Server" */
++        Server = (char *) g_malloc0(sizeof(char) * len);
++        if (Server == NULL){
++                CRIT("out of memory");
++                return NULL;
+         }
+-
+-        /* Set up connection parameters for this BIO */
+-        BIO_set_conn_hostname(bio, hostname);
+-        BIO_set_nbio(bio, 1);           /* Set underlying socket to
+-                                         * non-blocking mode
+-                                         */
+-
+-        /* Set up SSL session parameters */
+-        BIO_get_ssl(bio, &ssl);
+-        if (ssl == NULL) {
+-                CRIT("BIO_get_ssl() failed");
+-                BIO_free_all(bio);
+-                return(NULL);
++        memset(Server, 0, len);
++        /* hostname contains "Port" along with "IP Address". As, only
++         * "IP Address" is needed for some of the below operations, so copy
++         * "IP Address" from hostname to "Server".
++         */
++        strncpy(Server, hostname, (len - 4));
++
++        /* Allocate memory to a char pointer "Port" */
++        Port = (char *) g_malloc0(sizeof(char) * 4);
++        if (Port == NULL){
++                CRIT("out of memory");
++                g_free(Server);
++                return NULL;
+         }
+-        SSL_set_mode(ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+-
+-        /* Ready to open the connection.  Note that this call will probably
+-         * take a while, so we need to retry it, watching for a timeout.
++        /* As Port number is needed separately for some of the below
++         * operations, so copy port number from hostname to "Port".
+          */
+-        while (1) {
+-                if (BIO_do_connect(bio) == 1) {
+-                        break;          /* Connection established */
+-                }
+-                if (! BIO_should_retry(bio)) { /* Hard error? */
+-                        CRIT("BIO_do_connect() failed");
+-                        CRIT("SSL error: %s",
+-                            ERR_reason_error_string(ERR_get_error()));
+-                        BIO_free_all(bio);
+-                        return(NULL);
+-                }
++        strncpy(Port, hostname + (len - 3), 3);
++        
++        /* Create socket address structure to prepare client socket */
++        RetVal = getaddrinfo(Server, Port, &Hints, &AddrInfo);
++        if (RetVal != 0) {
++                CRIT("Cannot resolve address [%s] and port [%s],"
++                     " error %d: %s",
++                       Server, Port, RetVal, gai_strerror(RetVal));
++                g_free(Server);
++                g_free(Port);
++                return NULL;
++        }
++        
++        ai = AddrInfo;
++        /* Create a socket point */
++        socket_desc = socket(ai->ai_family, ai->ai_socktype,
++                                            ai->ai_protocol);
++        if (socket_desc == -1) {
++                CRIT("Socket failed with error: %s", 
++                      strerror(errno));
++                g_free(Server);
++                g_free(Port);
++                return NULL;
++        }
+ 
+-                /* Wait until there's a change in the socket's status or until
+-                 * the timeout period.
+-                 *
+-                 * Get underlying file descriptor, needed for the select call.
+-                 */
+-                fd = BIO_get_fd(bio, NULL);
+-                if (fd == -1) {
+-                        CRIT("BIO isn't initialized in oh_ssl_connect()");
+-                        BIO_free_all(bio);
+-                        return(NULL);
+-                }
++        /* Now connect to target IP Address */
++        retval = connect(socket_desc, ai->ai_addr, ai->ai_addrlen);
++        if (retval != 0) {
++                CRIT("Socket connect failed with error: %s",
++                      strerror(errno));
++                g_free(Server);
++                g_free(Port);
++                return NULL;
++        }
+ 
+-                FD_ZERO(&readfds);
+-                FD_ZERO(&writefds);
+-                if (BIO_should_read(bio)) {
+-                        FD_SET(fd, &readfds);
+-                }
+-                else if (BIO_should_write(bio)) {
+-                        FD_SET(fd, &writefds);
+-                }
+-                else {                  /* This is BIO_should_io_special().
+-                                         * Not sure what "special" needs to
+-                                         * wait for, but both read and write
+-                                         * seems to work without unnecessary
+-                                         * retries.
+-                                         */
+-                        FD_SET(fd, &readfds);
+-                        FD_SET(fd, &writefds);
+-                }
+-                if (timeout) {
+-                        tv.tv_sec = timeout;
+-                        tv.tv_usec = 0;
+-                        err = select(fd + 1, &readfds, &writefds, NULL, &tv);
+-                }
+-                else {                  /* No timeout */
+-                        err = select(fd + 1, &readfds, &writefds, NULL, NULL);
+-                }
++        /* Create new SSL structure for connection */
++        ssl = SSL_new(ctx);
+ 
+-                /* Evaluate select() return code */
+-                if (err < 0) {
+-                        CRIT("error during select()");
+-                        BIO_free_all(bio);
+-                        return(NULL);
+-                }
+-                if (err == 0) {
+-                        CRIT("connection timeout to %s", hostname);
+-                        BIO_free_all(bio);
+-                        return(NULL);   /* Timeout */
+-                }
++        /* Connect ssl object with a socket descriptor */
++        SSL_set_fd(ssl, socket_desc);
++
++        /* Initiate SSL connection */
++        err = SSL_connect(ssl);
++        if (err != 1) {
++                CRIT("SSL connection failed");
++                g_free(Server);
++                g_free(Port);
++                return (NULL);
+         }
+ 
++        bio = BIO_new(BIO_f_ssl());             /* create an ssl BIO */
++        BIO_set_ssl(bio, ssl, BIO_CLOSE);       /* assign the ssl BIO to SSL */
++
+         /* TODO: Do I need to set the client or server mode here?  I don't
+          * think so.
+          */
+ 
++        g_free(Server);
++        g_free(Port);
+         return(bio);
+ }
+ 
+-- 
+1.8.1.4
+
+
+From 2d5e3fbeca77d7ae1340fc936547a1922607c9ca Mon Sep 17 00:00:00 2001
+From: dr_mohan <dr_mohan@a44bbd40-eb13-0410-a9b2-f80f2f72fa26>
+Date: Thu, 22 Aug 2013 21:08:37 +0000
+Subject: [PATCH 2/2] One more fix for #1808
+
+git-svn-id: svn://svn.code.sf.net/p/openhpi/code/openhpi/trunk@7554 a44bbd40-eb13-0410-a9b2-f80f2f72fa26
+---
+ ssl/oh_ssl.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/ssl/oh_ssl.c b/ssl/oh_ssl.c
+index 77fe083..ce24bde 100644
+--- a/ssl/oh_ssl.c
++++ b/ssl/oh_ssl.c
+@@ -516,6 +516,7 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+                       strerror(errno));
+                 g_free(Server);
+                 g_free(Port);
++                freeaddrinfo(AddrInfo);	
+                 return NULL;
+         }
+ 
+@@ -526,6 +527,8 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+                       strerror(errno));
+                 g_free(Server);
+                 g_free(Port);
++                freeaddrinfo(AddrInfo);	
++                close(socket_desc);
+                 return NULL;
+         }
+ 
+@@ -541,6 +544,8 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+                 CRIT("SSL connection failed");
+                 g_free(Server);
+                 g_free(Port);
++                freeaddrinfo(AddrInfo);	
++                close(socket_desc);
+                 return (NULL);
+         }
+ 
+@@ -553,6 +558,7 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+ 
+         g_free(Server);
+         g_free(Port);
++        freeaddrinfo(AddrInfo);	
+         return(bio);
+ }
+ 
+@@ -570,7 +576,7 @@ BIO             *oh_ssl_connect(char *hostname, SSL_CTX *ctx, long timeout)
+ int             oh_ssl_disconnect(BIO *bio, enum OH_SSL_SHUTDOWN_TYPE shutdown)
+ {
+         SSL             *ssl;
+-        int             ret;
++        int             ret, fd;
+ 
+         if (bio == NULL) {
+                 CRIT("NULL bio in oh_ssl_disconnect()");
+@@ -602,6 +608,13 @@ int             oh_ssl_disconnect(BIO *bio, enum OH_SSL_SHUTDOWN_TYPE shutdown)
+                         /* Continuing on to free BIO memory */
+                 }
+         }
++        /* Close the socket */
++        fd = SSL_get_fd(ssl);
++        if (fd == -1) {
++                CRIT("SSL_get_fd() failed");
++                return(-1);
++        }
++        close(fd);
+ 
+         /* Free the connection */
+         BIO_free_all(bio);
+@@ -742,7 +755,7 @@ int             oh_ssl_read(BIO *bio, char *buf, int size, long timeout)
+                                 break;
+                         default:
+                                 /* Some other sort of error */
+-                                CRIT("error %d from SSL_read", bytes);
++                                CRIT("SSL_read reported error%d",SSL_get_error(ssl, bytes));
+                                 return(-1);
+                 }
+         }
+-- 
+1.8.1.4
+
